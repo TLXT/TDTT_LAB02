@@ -4,7 +4,7 @@
 **Giáo viên hướng dẫn:** Lê Đức Khoan  
 **Sinh viên thực hiện:** Trần Lê Xuân Tân  
 **MSSV:** 24120136  
-**Khoa:** Công nghệ thông tin - Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM  
+**Khoa:** Công nghệ thông tin - Trường Đại học Khoa học tự nhiên, ĐHQG-HCM  
 
 ---
 
