@@ -1,5 +1,5 @@
 """
-To-Do App Frontend
+To-Do-Go Frontend
 Streamlit application with Firebase Authentication
 """
 import streamlit as st
@@ -12,7 +12,7 @@ import re
 
 # Page configuration
 st.set_page_config(
-    page_title="To-Do App",
+    page_title="To-Do-Go",
     page_icon="📝",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -97,7 +97,7 @@ def login_page():
             st.error("Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn.")
             st.query_params.clear()
 
-    st.markdown('<h1 class="main-header">📝 To-Do App</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">📝 To-Do-Go</h1>', unsafe_allow_html=True)
     st.markdown("### Đăng nhập để bắt đầu quản lý công việc")
     
     tab1, tab2 = st.tabs(["Email/Password", "Đăng ký"])
@@ -191,7 +191,7 @@ def main_app():
         else:
             st.error("❌ Backend: Lỗi kết nối")
     
-    st.markdown('<h1 class="main-header">📝 To-Do App</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">📝 To-Do-Go</h1>', unsafe_allow_html=True)
     
     token = st.session_state.token
     tasks_data = api_client.get_tasks(token)
