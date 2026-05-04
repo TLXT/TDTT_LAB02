@@ -1,9 +1,9 @@
 # Bài Thực Hành Số 2: APPLICATION PROGRAMMING INTERFACE AND FIREBASE STUDIO
 
 **Môn học:** Tư Duy Tính Toán  
+**Giáo viên hướng dẫn:** Lê Đức Khoan
 **Sinh viên thực hiện:** Trần Lê Xuân Tân  
 **MSSV:** 24120136  
-**Lớp:** 24CTT6  
 **Khoa:** Công nghệ thông tin - Trường Đại học Khoa học Tự nhiên, ĐHQG-HCM  
 
 ---
@@ -40,7 +40,7 @@ cd <tên-thư-mục-repository>
   python3 -m venv venv
   source venv/bin/activate
   
-```
+  ```
 
 **Bước 3: Cài đặt các thư viện phụ thuộc**
 ```bash
