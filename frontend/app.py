@@ -1,10 +1,10 @@
 """
-To-Do-Go Frontend
+LetsLockin Frontend
 Streamlit application with Firebase Authentication
 """
 import streamlit as st
 from api_client import api_client
-from datetime import datetime
+from datetime import datetime, date, timedelta, timezone
 import time
 import requests
 import re  
@@ -12,8 +12,8 @@ import re
 
 # Page configuration
 st.set_page_config(
-    page_title="To-Do-Go",
-    page_icon="📝",
+    page_title="LetsLockin",
+    page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -97,7 +97,7 @@ def login_page():
             st.error("Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn.")
             st.query_params.clear()
 
-    st.markdown('<h1 class="main-header">📝 To-Do-Go</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🎯 LetsLockin</h1>', unsafe_allow_html=True)
     st.markdown("### Đăng nhập để bắt đầu quản lý công việc")
     
     tab1, tab2 = st.tabs(["Email/Password", "Đăng ký"])
@@ -173,6 +173,9 @@ def login_page():
 def main_app():
     """Display main application"""
     
+    # Tính toán chính xác Giờ Việt Nam (UTC+7)
+    vn_now = datetime.now(timezone.utc) + timedelta(hours=7)
+    
     with st.sidebar:
         st.markdown("### 👤 Thông tin người dùng")
         user_email = st.session_state.user.get('email') or st.session_state.user.get('users', [{}])[0].get('email', 'Unknown')
@@ -191,52 +194,123 @@ def main_app():
         else:
             st.error("❌ Backend: Lỗi kết nối")
     
-    st.markdown('<h1 class="main-header">📝 To-Do-Go</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🎯 LetsLockin</h1>', unsafe_allow_html=True)
     
     token = st.session_state.token
     tasks_data = api_client.get_tasks(token)
+    raw_tasks = tasks_data.get('tasks', []) if tasks_data else []
     
-    if tasks_data:
-        tasks = tasks_data.get('tasks', [])
-        st.session_state.tasks = tasks
-    else:
-        tasks = []
-    
-    stats = api_client.get_statistics(token)
-    if stats:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-number">{stats.get('total', 0)}</div>
-                <div class="stat-label">Tổng số công việc</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"""
-            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                <div class="stat-number">{stats.get('pending', 0)}</div>
-                <div class="stat-label">Đang làm</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"""
-            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <div class="stat-number">{stats.get('completed', 0)}</div>
-                <div class="stat-label">Hoàn thành</div>
-            </div>
-            """, unsafe_allow_html=True)
+    # --- BỘ LỌC NGÀY (ĐÃ CHỈNH LẠI CỘT CHO GỌN) ---
+    # Thêm một cột trống (spacer) ở cuối để đẩy các nội dung gọn về bên trái
+    col_filter_label, col_filter_mode, col_filter_date, spacer = st.columns([0.12, 0.20, 0.20, 0.48])
+    with col_filter_label:
+        st.markdown("<h4 style='margin-top: 5px;'>📅 Xem theo:</h4>", unsafe_allow_html=True)
+    with col_filter_mode:
+        view_mode = st.radio("Chế độ xem", ["Ngày cụ thể", "Tất cả"], horizontal=True, label_visibility="collapsed")
+    with col_filter_date:
+        if view_mode == "Ngày cụ thể":
+            # Sử dụng ngày VN hiện tại làm mặc định
+            selected_date = st.date_input("Chọn ngày", vn_now.date(), label_visibility="collapsed")
+            selected_date_str = selected_date.strftime('%Y-%m-%d')
+        else:
+            selected_date_str = None
+
+    # --- XỬ LÝ VÀ LỌC DỮ LIỆU ---
+    processed_tasks = []
+    for task in raw_tasks:
+        raw_desc = task.get('description', '')
+        created_at_raw = task.get('created_at', '')
+        
+        # Xử lý thời gian tạo từ UTC sang Múi giờ Việt Nam
+        try:
+            dt = datetime.fromisoformat(created_at_raw.replace('Z', '+00:00'))
+            if dt.tzinfo is not None:
+                dt_vn = dt.astimezone(timezone(timedelta(hours=7)))
+            else:
+                dt_vn = dt + timedelta(hours=7)
+            created_time_str = dt_vn.strftime('%H:%M - %d/%m/%Y')
+        except Exception:
+            created_time_str = created_at_raw
+            
+        task['created_time_str'] = created_time_str
+        
+        # Bóc tách Ngày làm việc 
+        date_match = re.search(r'\[DATE:(\d{4}-\d{2}-\d{2})\]', raw_desc)
+        if date_match:
+            task_date_str = date_match.group(1)
+            raw_desc = raw_desc.replace(date_match.group(0), '')
+        else:
+            # Fallback ngày tạo theo giờ VN
+            try:
+                dt_fallback = datetime.fromisoformat(created_at_raw.replace('Z', '+00:00'))
+                if dt_fallback.tzinfo is not None:
+                    dt_fallback = dt_fallback.astimezone(timezone(timedelta(hours=7)))
+                else:
+                    dt_fallback = dt_fallback + timedelta(hours=7)
+                task_date_str = dt_fallback.strftime('%Y-%m-%d')
+            except:
+                task_date_str = vn_now.strftime('%Y-%m-%d')
+                
+        # Bóc tách Mã màu 
+        color_match = re.search(r'\[COLOR:(#[0-9a-fA-F]{6})\]', raw_desc)
+        if color_match:
+            task_color = color_match.group(1)
+            clean_desc = raw_desc.replace(color_match.group(0), '').strip()
+        else:
+            task_color = "#9E9E9E"
+            clean_desc = raw_desc.strip()
+            
+        task['parsed_date'] = task_date_str
+        task['parsed_color'] = task_color
+        task['clean_desc'] = clean_desc
+        
+        # Áp dụng bộ lọc
+        if selected_date_str and task_date_str != selected_date_str:
+            continue
+            
+        processed_tasks.append(task)
+
+    # --- THỐNG KÊ (Tính toán dựa trên danh sách đã lọc) ---
+    total_tasks = len(processed_tasks)
+    completed_tasks = sum(1 for t in processed_tasks if t['status'] == 'completed')
+    pending_tasks = total_tasks - completed_tasks
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="stat-number">{total_tasks}</div>
+            <div class="stat-label">Tổng số công việc</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="stat-number">{pending_tasks}</div>
+            <div class="stat-label">Đang làm</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="stat-number">{completed_tasks}</div>
+            <div class="stat-label">Hoàn thành</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     st.markdown("### ➕ Thêm công việc mới")
     
     with st.form("add_task_form", clear_on_submit=True):
-        col1, col2 = st.columns([3, 1])
+        col1, col2, col3 = st.columns([2, 1, 1])
         
         with col1:
             task_title = st.text_input("Tiêu đề", placeholder="Nhập tiêu đề công việc...")
         with col2:
-            # Danh sách 8 màu ưu tiên không chứa màu xanh lá
+            # Gợi ý mặc định là ngày VN đang xem
+            default_date = selected_date if view_mode == "Ngày cụ thể" else vn_now.date()
+            task_date = st.date_input("📅 Ngày thực hiện", default_date)
+        with col3:
             PRIORITY_COLORS = {
                 "🔴 Đỏ (Gấp)": "#FF5252",
                 "🟠 Cam (Quan trọng)": "#FF9800",
@@ -255,8 +329,7 @@ def main_app():
         
         if submit_task:
             if task_title:
-                # Gắn mã màu ẩn vào phần đầu của description để lưu trữ
-                full_desc = f"[COLOR:{task_color}]{task_description}"
+                full_desc = f"[DATE:{task_date.strftime('%Y-%m-%d')}][COLOR:{task_color}]{task_description}"
                 
                 result = api_client.create_task(
                     token,
@@ -274,53 +347,45 @@ def main_app():
     
     col_title, col_btn = st.columns([0.85, 0.15])
     with col_title:
-        st.markdown("### 📋 Danh sách công việc")
+        title_suffix = f" ngày {selected_date.strftime('%d/%m/%Y')}" if view_mode == "Ngày cụ thể" else " (Tất cả)"
+        st.markdown(f"### 📋 Danh sách công việc{title_suffix}")
     with col_btn:
         if st.button("🔄 Làm mới", use_container_width=True):
             st.rerun()
     
-    if not tasks:
-        st.info("📭 Chưa có công việc nào. Hãy thêm công việc đầu tiên!")
+    if not processed_tasks:
+        st.info("📭 Không có công việc nào trong danh sách này!")
     else:
-        for task in tasks:
+        for task in processed_tasks:
             task_id = task['id']
             title = task['title']
-            raw_desc = task.get('description', '')
+            description = task['clean_desc']
+            task_color = task['parsed_color']
+            task_date_str = task['parsed_date']
             status = task['status']
-            created_at = task['created_at']
+            created_time_str = task['created_time_str']
             
-            # Tách lấy mã màu từ description
-            color_match = re.search(r'\[COLOR:(#[0-9a-fA-F]{6})\]', raw_desc)
-            if color_match:
-                task_color = color_match.group(1)
-                description = raw_desc.replace(color_match.group(0), '').strip()
-            else:
-                task_color = "#9E9E9E" # Màu xám mặc định
-                description = raw_desc
-            
+            # Format lại ngày để hiển thị
             try:
-                dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                date_str = dt.strftime('%d/%m/%Y %H:%M')
+                dt = datetime.strptime(task_date_str, '%Y-%m-%d')
+                display_date = dt.strftime('%d/%m/%Y')
             except:
-                date_str = created_at
+                display_date = task_date_str
             
             is_completed = status == 'completed'
             
-            # Gán màu sắc (màu xanh lá nếu xong, màu đã chọn nếu đang làm)
             if is_completed:
-                bg_color = "#34a85315" # Xanh lá kèm độ mờ
+                bg_color = "#34a85315" 
                 border_color = "#34a853"
             else:
-                bg_color = f"{task_color}15" # Mã màu kèm độ mờ
+                bg_color = f"{task_color}15"
                 border_color = task_color
                 
             card_class = f"task-marker-{task_id}"
             
-            # Khởi tạo cột luôn, KHÔNG DÙNG st.container() NỮA ĐỂ CHỐNG TRÀN MÀU
             col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
             
             with col1:
-                # Nhúng CSS trực tiếp vào HÀNG NGANG (stHorizontalBlock)
                 st.markdown(f"""
                 <style>
                     div[data-testid="stHorizontalBlock"]:has(.{card_class}) {{
@@ -329,8 +394,8 @@ def main_app():
                         padding: 15px 20px;
                         border-radius: 8px;
                         margin-bottom: 12px;
-                        align-items: center; /* Căn giữa theo chiều dọc */
-                        box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Đổ bóng nhẹ cho nổi bật */
+                        align-items: center; 
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
                         transition: all 0.3s ease;
                     }}
                 </style>
@@ -341,7 +406,14 @@ def main_app():
                 st.markdown(f'<div style="{title_style}">{title}</div>', unsafe_allow_html=True)
                 if description:
                     st.markdown(f'<div style="color: #999; font-size: 0.9em; margin-top: 5px;">{description}</div>', unsafe_allow_html=True)
-                st.markdown(f'<div style="color: #666; font-size: 0.8em; margin-top: 10px;">📅 {date_str}</div>', unsafe_allow_html=True)
+                
+                # Hiển thị song song Ngày hẹn và Giờ tạo
+                st.markdown(f'''
+                    <div style="color: #666; font-size: 0.85em; margin-top: 10px; display: flex; gap: 20px;">
+                        <span style="font-weight: 500;">⏳ Lịch hẹn: {display_date}</span>
+                        <span>🕒 Tạo lúc: {created_time_str}</span>
+                    </div>
+                ''', unsafe_allow_html=True)
             
             with col2:
                 checked = st.checkbox(
