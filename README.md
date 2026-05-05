@@ -95,5 +95,5 @@ Video dưới đây trình bày chi tiết về:
 - Demo tính năng chính (CRUD tasks).
 - Minh họa dữ liệu thay đổi thực tế trên Firebase Firestore.
 
-👉 **[Bấm vào đây để xem Video Demo](#)** 
-*(Lưu ý: Thay thế dấu # bằng đường dẫn URL tới video trên YouTube/Google Drive của bạn)*
+👉 **[Bấm vào đây để xem Video Demo](https://youtu.be/D5CJxyhfIWE?si=98_v8Da8x9Cs2qP9)** 
+Hoặc 👉 **[Bấm vào đây để xem Video Demo](https://drive.google.com/file/d/1zuJ35ifpXoFv1Gn6WLGewNjeOn058BKy/view?usp=sharing)** 
